@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+    @$0_backend:
+        container_name: @$0_backend
+        build:
+            context: ../backend
+        command: python manage.py runserver 0.0.0.0:8000
+        environment:
+            POSTGRES_HOST: ${POSTGRES_HOST}
+            POSTGRES_DB: ${POSTGRES_DB}
+            POSTGRES_PORT: ${POSTGRES_PORT}
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+        volumes:
+            - ../backend:/app
+        ports:
+            - 8000:8000
+        networks:
+            @$0_network:
+        depends_on:
+            - @$0_db
+        restart: unless-stopped
+    
+    @$0_db:
+        container_name: @$0_db
+        image: postgres
+        volumes:
+            - ../postgres-data:/var/lib/postgresql/data
+        environment:
+            POSTGRES_DB: ${POSTGRES_DB}
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+        ports:
+            - 5432:5432
+        networks:
+            @$0_network:
+        restart: unless-stopped
+    
+    @$0_frontend:
+        container_name: @$0_frontend
+        build:
+            context: ../frontend
+        command: yarn serve
+        volumes:
+            - ../frontend:/app
+        ports:
+            - 8080:8080
+        networks:
+            @$0_network:
+        depends_on:
+            - @$0_backend
+        restart: unless-stopped
+
+networks:
+    @$0_network:
