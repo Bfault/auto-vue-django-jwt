@@ -78,7 +78,18 @@ def fill_back(appname, path):
 
 
 def add_layouts(appname, path):
-    pass
+    os.mkdir(os.path.join(path, 'frontend', 'src', 'layouts'))
+    with open(os.path.join(path, 'frontend', 'src', 'layouts', 'Default.vue'), 'w') as file:
+        file.write(static.get_default_layout())
+    
+    with open(os.path.join(path, 'frontend', 'src', 'components', 'FooterBar.vue'), 'w') as file:
+        file.write(static.get_footerbar())
+    with open(os.path.join(path, 'frontend', 'src', 'components', 'NavBar.vue'), 'w') as file:
+        file.write(static.get_navbar())
+    with open(os.path.join(path, 'frontend', 'src', 'App.vue'), 'w') as file:
+        file.write(static.get_app())
+    with open(os.path.join(path, 'frontend', 'src', 'main.js'), 'w') as file:
+        file.write(static.get_main())
 
 
 

@@ -213,3 +213,116 @@ REST_FRAMEWORK = {
     ),
 }
 """
+
+def get_default_layout():
+    return """<template>
+  <div>
+    <nav-bar />
+
+    <slot />
+    <v-footer app dark>
+      <footer-bar />
+    </v-footer>
+  </div>
+</template>
+
+<script>
+import NavBar from "@/components/NavBar";
+import FooterBar from "@/components/FooterBar";
+
+export default {
+  components: {
+    NavBar,
+    FooterBar,
+  },
+};
+</script>
+"""
+
+def get_footerbar():
+    return """<template>
+    <v-container>
+        Footer
+    </v-container>
+</template>
+
+<script>
+export default {
+    name: 'FooterBar'
+}
+</script>
+"""
+
+def get_navbar():
+    return """<template>
+  <v-app-bar color="rgba(0, 0, 0, 0.8)">
+    <router-link class="link" to="/" id="title">Title</router-link>
+    <v-spacer></v-spacer>
+  </v-app-bar>
+</template>
+
+<script>
+export default {
+  name: "NavBar"
+};
+</script>
+
+<style scoped>
+#title {
+  color: #969fff !important;
+}
+</style>
+"""
+
+def get_app():
+    return """<template>
+  <v-app>
+    <v-main>
+      <v-component :is='layout'>
+        <router-view/>
+      </v-component>
+    </v-main>
+  </v-app>
+</template>
+
+<script>
+const default_layout = 'default';
+
+export default {
+  name: 'App',
+  computed: {
+    layout() {
+      return (this.$route.meta.layout || default_layout) + '-layout';
+    }
+  }
+};
+</script>
+
+<style>
+.link {
+  color: #000000 !important;
+  text-decoration: none;
+}
+</style>
+"""
+
+def get_main():
+    return """import Vue from 'vue'
+import App from './App.vue'
+import router from './router'
+import store from './store'
+import vuetify from './plugins/vuetify'
+
+import Default from './layouts/Default.vue'
+
+Vue.component('default-layout', Default);
+
+Vue.config.productionTip = false
+
+new Vue({
+  router,
+  store,
+  vuetify,
+  render: h => h(App)
+}).$mount('#app')
+"""
