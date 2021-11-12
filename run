@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import enum
 import subprocess
 import traceback
 import static
@@ -30,7 +29,6 @@ def create_app(appname, path):
     print(bcolors.SUCCESS + 'backend directory successful created' + bcolors.RESET)
 
 
-
 def fill_dev(appname, path):
     with open(os.path.join(path, 'dev', 'docker-compose.yml'), 'w') as file:
         file.write(static.get_docker_compose(appname))
@@ -40,12 +38,15 @@ def fill_dev(appname, path):
         file.write(static.get_env(appname, secrets.token_urlsafe(50)))
     print(bcolors.SUCCESS + 'env successful created' + bcolors.RESET)
 
+
 def fill_front(appname, path):
     with open(os.path.join(path, 'frontend', 'Dockerfile'), 'w') as file:
         file.write(static.get_front_dockerfile())
     print(bcolors.SUCCESS + 'front dockerfile successful created' + bcolors.RESET)
     subprocess.call(['vue', 'add', 'vuetify', '--preset', 'default'], cwd=os.path.join(path, 'frontend'))
-
+    subprocess.call(['yarn', 'add', 'axios'], cwd=os.path.join(path, 'frontend'))
+    with open(os.path.join(path, 'frontend', 'src', 'components', 'HelloWorld.vue'), 'w') as file:
+        file.write(static.get_test_world())
 
 
 def fill_back(appname, path):
@@ -74,7 +75,11 @@ def fill_back(appname, path):
     
     subprocess.call(['docker-compose', '-f', 'dev/docker-compose.yml', 'run', f'{appname}_backend', 'python3', 'manage.py', 'startapp', 'api'], cwd=path)
     print(bcolors.SUCCESS + 'API successful created' + bcolors.RESET)
-
+    with open(os.path.join(path, 'backend', 'back', 'settings.py'), 'r') as file:
+        settings = file.read()
+        new_settings = re.sub("(INSTALLED_APPS = \[(?:\n|[^[])*\')\n\]", r"\1,\n    'api'\n]", settings, flags=re.M)
+    with open(os.path.join(path, 'backend', 'back', 'settings.py'), 'w') as file:
+        file.write(new_settings)
 
 
 def add_layouts(appname, path):
@@ -91,6 +96,34 @@ def add_layouts(appname, path):
     with open(os.path.join(path, 'frontend', 'src', 'main.js'), 'w') as file:
         file.write(static.get_main())
 
+
+def add_api(appname, path):
+    with open(os.path.join(path, 'frontend', 'src', 'API.js'), 'w') as file:
+        file.write(static.get_api())
+    #Model
+    os.mkdir(os.path.join(path, 'backend', 'api', 'models'))
+    os.remove(os.path.join(path, 'backend', 'api', 'models.py'))
+    with open(os.path.join(path, 'backend', 'api', 'models', 'test_model.py'), 'w') as file:
+        file.write(static.get_test_model())
+    #Serializer
+    os.mkdir(os.path.join(path, 'backend', 'api', 'serializers'))
+    with open(os.path.join(path, 'backend', 'api', 'serializers', 'test_serializer.py'), 'w') as file:
+        file.write(static.get_test_serializer())
+    #View
+    os.remove(os.path.join(path, 'backend', 'api', 'views.py'))
+    os.mkdir(os.path.join(path, 'backend', 'api', 'views'))
+    with open(os.path.join(path, 'backend', 'api', 'views', 'test_view.py'), 'w') as file:
+        file.write(static.get_test_view())
+
+    #url
+    with open(os.path.join(path, 'backend', 'api', 'urls.py'), 'w') as file:
+        file.write(static.get_suburl())
+    with open(os.path.join(path, 'backend', 'back', 'urls.py'), 'w') as file:
+        file.write(static.get_url())
+
+
+def add_authentication(appname, path):
+    pass
 
 
 def main():
@@ -112,6 +145,8 @@ def main():
     fill_back(appname, path)
     
     add_layouts(appname, path)
+    add_api(appname, path)
+    add_authentication(appname, path)
 
 if __name__ == '__main__':
     try:

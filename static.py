@@ -204,14 +204,6 @@ USE_TZ = True
 
 
 STATIC_URL = '/static/'
-
-REST_FRAMEWORK = {
-    'EXCEPTION_HANDLER': 'api.exceptions.core_exception_handler',
-    'NON_FIELD_ERRORS_KEY': 'error',
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'api.authentication.JWTAuthentication',
-    ),
-}
 """
 
 def get_default_layout():
@@ -325,4 +317,136 @@ new Vue({
   vuetify,
   render: h => h(App)
 }).$mount('#app')
+"""
+
+def get_api():
+    return """import axios from 'axios'
+
+const api = axios.create({
+    baseURL: 'http://127.0.0.1:8000/API/',
+    timeout: 1000,
+    withCredentials: false
+});
+
+function changeToken(token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+}
+
+async function getTest() {
+    const response = await api.get('test/')
+    return response
+}
+
+async function postTest(body) {
+    const response = api.post('test/', { body })
+    return response
+}
+export {
+    changeToken,
+    getTest,
+    postTest
+}
+"""
+
+def get_test_model():
+    return """from django.db import models
+
+class Test(models.Model):
+    body = models.TextField()
+
+    def __str__(self):
+        return f'{self.body}'
+"""
+
+def get_test_serializer():
+    return """from rest_framework import serializers
+from api.models import test_model
+
+class TestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = test_model.Test
+        fields = '__all__'
+"""
+
+def get_test_view():
+    return """from rest_framework import generics
+
+from api.models import test_model
+from api.serializers import test_serializer
+
+class TestViewSet(generics.ListCreateAPIView):
+    queryset = test_model.Test.objects.all()
+    serializer_class = test_serializer.TestSerializer
+"""
+
+def get_suburl():
+    return """from django.urls import path
+
+from api.views import test_view
+
+urlpatterns = [
+    path('test/', test_view.TestViewSet.as_view()),
+]
+"""
+
+def get_url():
+    return """from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('API/', include('api.urls'))
+]
+"""
+
+def get_test_world():
+    return """<template>
+  <v-container>
+    <v-row>
+      <v-col>
+        <v-btn fab @click.stop="getMsg">
+          <v-icon>mdi-download</v-icon>
+        </v-btn>
+        <v-text-field
+          v-model="message"
+          append-outer-icon="mdi-send"
+          @click:append-outer="saveMsg"
+        >
+        </v-text-field>
+      </v-col>
+      <v-col>
+        <v-list v-for="msg in messages" :key="msg.id">
+          {{ msg.body }}
+        </v-list>
+      </v-col>
+    </v-row>
+  </v-container>
+</template>
+
+<script>
+import { getTest, postTest } from "@/API";
+
+export default {
+  name: "HelloWorld",
+  data() {
+    return {
+      message: null,
+      messages: [],
+    };
+  },
+  methods: {
+    getMsg() {
+      getTest().then((response) => {
+        this.messages = response.data;
+      });
+    },
+    saveMsg() {
+      postTest(this.message).then(() => this.getMsg());
+    },
+  },
+  created() {
+    this.getMsg();
+  },
+};
+</script>
 """
