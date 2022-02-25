@@ -5,6 +5,8 @@ import traceback
 import static
 import secrets
 import re
+import sys
+from os.path import join as pjoin
 
 class bcolors:
     RESET = '\033[0m'
@@ -13,147 +15,180 @@ class bcolors:
     QUESTION = '\033[1;33m'
     INFO = '\033[1;34m'
 
+###############################################################################
 
+def print_success(msg):
+    print(bcolors.SUCCESS + msg + bcolors.RESET)
+
+def print_info(msg):
+    print(bcolors.INFO + msg + bcolors.RESET)
+
+def ask_question(msg):
+    return input(bcolors.QUESTION + msg + bcolors.RESET)
+
+###############################################################################
 
 def create_app(appname, path):
     basedir = os.getcwd()
-    print(bcolors.INFO + f'creation of {appname} starting at {path}' + bcolors.RESET)
+    print_info(f'Creation of {appname} starting at {path}')
     
-    os.mkdir(os.path.join(path, 'dev'))
-    print(bcolors.SUCCESS + 'dev directory successful created' + bcolors.RESET)
+    os.mkdir(pjoin(path, 'dev'))
+    print_success('dev directory successful created')
 
-    subprocess.call(['vue', 'create', '-n', '-p', os.path.join(basedir, 'vue-preset.json'), 'frontend'], cwd=path)
-    print(bcolors.SUCCESS + 'frontend directory successful created' + bcolors.RESET)
+    ## keep the output for futur verbose flag
+    output = subprocess.run(
+        f"vue create -n -p {pjoin(basedir, 'vue-preset.json')} frontend".split(),
+        cwd=path, stdout=subprocess.PIPE, check=True
+    )
+    print_success('frontend directory successful created')
 
-    os.mkdir(os.path.join(path, 'backend'))
-    print(bcolors.SUCCESS + 'backend directory successful created' + bcolors.RESET)
-
+    os.mkdir(pjoin(path, 'backend'))
+    print_success('backend directory successful created')
 
 def fill_dev(appname, path):
-    with open(os.path.join(path, 'dev', 'docker-compose.yml'), 'w') as file:
+    print_info('Filling of dev file')
+
+    with open(pjoin(path, 'dev', 'docker-compose.yml'), 'w') as file:
         file.write(static.get_docker_compose(appname))
-    print(bcolors.SUCCESS + 'docker compose successful created' + bcolors.RESET)
+    print_success('docker compose successful created')
 
-    with open(os.path.join(path, 'dev', '.env'), 'w') as file:
+    with open(pjoin(path, 'dev', '.env'), 'w') as file:
         file.write(static.get_env(appname, secrets.token_urlsafe(50)))
-    print(bcolors.SUCCESS + 'env successful created' + bcolors.RESET)
-
+    print_success('env successful created')
 
 def fill_front(appname, path):
-    with open(os.path.join(path, 'frontend', 'Dockerfile'), 'w') as file:
-        file.write(static.get_front_dockerfile())
-    print(bcolors.SUCCESS + 'front dockerfile successful created' + bcolors.RESET)
-    subprocess.call(['vue', 'add', 'vuetify', '--preset', 'default'], cwd=os.path.join(path, 'frontend'))
-    subprocess.call(['yarn', 'add', 'axios'], cwd=os.path.join(path, 'frontend'))
-    with open(os.path.join(path, 'frontend', 'src', 'components', 'HelloWorld.vue'), 'w') as file:
-        file.write(static.get_test_world())
+    print_info('Filling of front file')
 
+    with open(pjoin(path, 'frontend', 'Dockerfile'), 'w') as file:
+        file.write(static.get_front_dockerfile())
+    print_success('front dockerfile successful created')
+
+    ## TODO replace default preset with personal one
+    pipe_y = subprocess.Popen(['yes'], stdout=subprocess.PIPE)
+    output = subprocess.run(
+        "vue add vuetify --preset default".split(),
+        cwd=pjoin(path, 'frontend'), stdout=subprocess.PIPE, stdin=pipe_y.stdout, check=True
+    )
+    print_success('vuetify successful added')
+
+    output = subprocess.run(
+        "yarn add axios".split(),
+        cwd=pjoin(path, 'frontend'), stdout=subprocess.PIPE, check=True
+    )
+    print_success('axios successful added')
+    
+    with open(pjoin(path, 'frontend', 'src', 'components', 'HelloWorld.vue'), 'w') as file:
+        file.write(static.get_test_world())
+    print_success('test world successful created')
 
 def fill_back(appname, path):
-    with open(os.path.join(path, 'backend', 'Dockerfile'), 'w') as file:
+    print_info('Filling of back file')
+
+    with open(pjoin(path, 'backend', 'Dockerfile'), 'w') as file:
         file.write(static.get_back_dockerfile())
-    print(bcolors.SUCCESS + 'back dockerfile successful created' + bcolors.RESET)
+    print_success('back dockerfile successful created')
     
-    with open(os.path.join(path, 'backend', 'requirements.txt'), 'w') as file:
+    with open(pjoin(path, 'backend', 'requirements.txt'), 'w') as file:
         file.write(static.get_requirements())
-    print(bcolors.SUCCESS + 'requirements successful created' + bcolors.RESET)
+    print_success('requirements successful created')
     
-    subprocess.call(['docker-compose', '-f', 'dev/docker-compose.yml', 'run', f'{appname}_backend', 'django-admin', 'startproject', 'back', '.'], cwd=path)
-    print(bcolors.SUCCESS + 'backend project successful created' + bcolors.RESET)
+    #output = \
+    subprocess.run(
+        f"docker-compose -f dev/docker-compose.yml run {appname}_backend .local/bin/django-admin startproject back .".split(),
+        cwd=path, check=True, #stdout=subprocess.PIPE
+    )
+    print_success('backend project successful created')
     
     pattern = re.compile("SECRET_KEY = \'(.*)\'")
-    with open(os.path.join(path, 'backend', 'back', 'settings.py'), 'r') as file:
+    with open(pjoin(path, 'backend', 'back', 'settings.py'), 'r') as file:
         lines = file.read()
         result = re.findall(pattern, lines)
+    print_success('secret key successful retrieved')
     
-    with open(os.path.join(path, 'dev', '.env'), 'a') as file:
+    with open(pjoin(path, 'dev', '.env'), 'a') as file:
         file.write(f'DJANGO_SECRET_KEY={result[0]}')
+    print_success('secret key successful added to env')
     
-    with open(os.path.join(path, 'backend', 'back', 'settings.py'), 'w') as file:
+    with open(pjoin(path, 'backend', 'back', 'settings.py'), 'w') as file:
         file.write(static.get_init_settings())
-    print(bcolors.SUCCESS + 'settings successful modified' + bcolors.RESET)
+    print_success('settings successful modified')
     
-    subprocess.call(['docker-compose', '-f', 'dev/docker-compose.yml', 'run', f'{appname}_backend', 'python3', 'manage.py', 'startapp', 'api'], cwd=path)
-    print(bcolors.SUCCESS + 'API successful created' + bcolors.RESET)
-    with open(os.path.join(path, 'backend', 'back', 'settings.py'), 'r') as file:
+    output = subprocess.run(
+        f"docker-compose -f dev/docker-compose.yml run {appname}_backend python3 manage.py startapp api".split(),
+        cwd=path, check=True, stdout=subprocess.PIPE)
+    print_success('app successful started')
+
+    with open(pjoin(path, 'backend', 'back', 'settings.py'), 'r') as file:
         settings = file.read()
         new_settings = re.sub("(INSTALLED_APPS = \[(?:\n|[^[])*\')\n\]", r"\1,\n    'api'\n]", settings, flags=re.M)
-    with open(os.path.join(path, 'backend', 'back', 'settings.py'), 'w') as file:
+    with open(pjoin(path, 'backend', 'back', 'settings.py'), 'w') as file:
         file.write(new_settings)
-
+    print_success('settings successful updated')
 
 def add_layouts(appname, path):
-    os.mkdir(os.path.join(path, 'frontend', 'src', 'layouts'))
-    with open(os.path.join(path, 'frontend', 'src', 'layouts', 'Default.vue'), 'w') as file:
+    os.mkdir(pjoin(path, 'frontend', 'src', 'layouts'))
+    with open(pjoin(path, 'frontend', 'src', 'layouts', 'Default.vue'), 'w') as file:
         file.write(static.get_default_layout())
     
-    with open(os.path.join(path, 'frontend', 'src', 'components', 'FooterBar.vue'), 'w') as file:
+    with open(pjoin(path, 'frontend', 'src', 'components', 'FooterBar.vue'), 'w') as file:
         file.write(static.get_footerbar())
-    with open(os.path.join(path, 'frontend', 'src', 'components', 'NavBar.vue'), 'w') as file:
+    with open(pjoin(path, 'frontend', 'src', 'components', 'NavBar.vue'), 'w') as file:
         file.write(static.get_navbar())
-    with open(os.path.join(path, 'frontend', 'src', 'App.vue'), 'w') as file:
+    with open(pjoin(path, 'frontend', 'src', 'App.vue'), 'w') as file:
         file.write(static.get_app())
-    with open(os.path.join(path, 'frontend', 'src', 'main.js'), 'w') as file:
+    with open(pjoin(path, 'frontend', 'src', 'main.js'), 'w') as file:
         file.write(static.get_main())
 
-
 def add_api(appname, path):
-    with open(os.path.join(path, 'frontend', 'src', 'API.js'), 'w') as file:
+    with open(pjoin(path, 'frontend', 'src', 'API.js'), 'w') as file:
         file.write(static.get_api())
     #Model
-    os.mkdir(os.path.join(path, 'backend', 'api', 'models'))
-    os.remove(os.path.join(path, 'backend', 'api', 'models.py'))
-    with open(os.path.join(path, 'backend', 'api', 'models', 'test_model.py'), 'w') as file:
+    os.mkdir(pjoin(path, 'backend', 'api', 'models'))
+    os.remove(pjoin(path, 'backend', 'api', 'models.py'))
+    with open(pjoin(path, 'backend', 'api', 'models', 'test_model.py'), 'w') as file:
         file.write(static.get_test_model())
     #Serializer
-    os.mkdir(os.path.join(path, 'backend', 'api', 'serializers'))
-    with open(os.path.join(path, 'backend', 'api', 'serializers', 'test_serializer.py'), 'w') as file:
+    os.mkdir(pjoin(path, 'backend', 'api', 'serializers'))
+    with open(pjoin(path, 'backend', 'api', 'serializers', 'test_serializer.py'), 'w') as file:
         file.write(static.get_test_serializer())
     #View
-    os.remove(os.path.join(path, 'backend', 'api', 'views.py'))
-    os.mkdir(os.path.join(path, 'backend', 'api', 'views'))
-    with open(os.path.join(path, 'backend', 'api', 'views', 'test_view.py'), 'w') as file:
+    os.remove(pjoin(path, 'backend', 'api', 'views.py'))
+    os.mkdir(pjoin(path, 'backend', 'api', 'views'))
+    with open(pjoin(path, 'backend', 'api', 'views', 'test_view.py'), 'w') as file:
         file.write(static.get_test_view())
 
     #url
-    with open(os.path.join(path, 'backend', 'api', 'urls.py'), 'w') as file:
+    with open(pjoin(path, 'backend', 'api', 'urls.py'), 'w') as file:
         file.write(static.get_suburl())
-    with open(os.path.join(path, 'backend', 'back', 'urls.py'), 'w') as file:
+    with open(pjoin(path, 'backend', 'back', 'urls.py'), 'w') as file:
         file.write(static.get_url())
-
 
 def add_authentication(appname, path):
     pass
 
-
 def main():
-    appname = input(bcolors.QUESTION + 'Name of the application: ' + bcolors.RESET)
-    path = input(bcolors.QUESTION + 'Path of the application: ' + bcolors.RESET) or '.'
+    appname = ask_question('Name of the application: ').lower()
+    path = ask_question('Path of the application (default: current): ') or '.'
 
-    if not os.path.isdir(path):
-        print(bcolors.ERROR + f'{path} directory does not exist' + bcolors.RESET)
-        print(bcolors.INFO + 'creation aborted' + bcolors.RESET)
-    
     create_app(appname, path)
     
-    with open(os.path.join(path, '.gitignore'), 'w') as file:
+    with open(pjoin(path, '.gitignore'), 'w') as file:
         file.write('.env')
-    print(bcolors.SUCCESS + '.env added to gitignore' + bcolors.RESET)
+    print_success('gitignore successful created')
+    print_success('.env added to gitignore')
     
     fill_dev(appname, path)
     fill_front(appname, path)
     fill_back(appname, path)
     
-    add_layouts(appname, path)
-    add_api(appname, path)
-    add_authentication(appname, path)
+    # add_layouts(appname, path)
+    # add_api(appname, path)
+    # add_authentication(appname, path)
 
 if __name__ == '__main__':
     try:
         main()
-    except FileExistsError as error:
-        print(bcolors.ERROR + f'file {error.filename} already exist' + bcolors.RESET)
-        raise
-    except:
-        print(bcolors.INFO + 'creation aborted' + bcolors.RESET)
-        traceback.print_exc()
+    except Exception as e:
+        print(bcolors.ERROR + f'creation aborted: {e}' + bcolors.RESET)
+        sys.exit(84)
+        # traceback.print_exc()

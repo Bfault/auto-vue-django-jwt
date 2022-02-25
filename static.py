@@ -81,16 +81,18 @@ EXPOSE 8080
 """
 
 def get_back_dockerfile():
-    return """FROM python:3.9.0
+    return """FROM python:3
 
+RUN useradd -m -d /app -s /bin/bash backend
+USER backend
 ENV PYTHONUNBUFFERED 1
 ADD requirements.txt /app/requirements.txt
 WORKDIR /app/
 
-RUN pip install -r requirements.txt
-RUN adduser --disabled-password --gecos '' backend_user
+RUN pip install --no-cache-dir --upgrade pip
 
-USER backend_user
+RUN pip install --no-cache-dir -r requirements.txt
+
 
 COPY . /app/
 
